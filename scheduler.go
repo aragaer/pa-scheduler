@@ -1,5 +1,9 @@
 package main
 
+import (
+	"container/list"
+)
+
 type Event struct {
 	delay  int64
 	repeat int64
@@ -8,28 +12,43 @@ type Event struct {
 }
 
 type Scheduler struct {
-	event *Event
+	events *list.List
+}
+
+func NewScheduler() (result *Scheduler) {
+	return &Scheduler{list.New()}
 }
 
 func (scheduler *Scheduler) Queue(event *Event) {
-	scheduler.event = event
+	for e := scheduler.events.Front(); e != nil; e = e.Next() {
+		queued := e.Value.(*Event)
+		if queued.delay > event.delay {
+			queued.delay -= event.delay
+			scheduler.events.InsertBefore(event, e)
+			return
+		}
+		event.delay -= queued.delay
+	}
+	scheduler.events.PushBack(event)
 }
 
 func (scheduler *Scheduler) Tick(seconds int) {
-	if scheduler.event != nil {
-		scheduler.event.delay -= int64(seconds)
+	first := scheduler.events.Front()
+	if first != nil {
+		first.Value.(*Event).delay -= int64(seconds)
 	}
 }
 
-func (scheduler *Scheduler) GetTriggeredEvent() *Event {
-	if scheduler.event == nil || scheduler.event.delay > 0 {
-		return nil
+func (scheduler *Scheduler) GetTriggeredEvent() (triggered *Event) {
+	first := scheduler.events.Front()
+	if first == nil || first.Value.(*Event).delay > 0 {
+		return
 	}
-	result := scheduler.event
-	if result.repeat != 0 {
-		result.delay = result.repeat
-	} else {
-		scheduler.event = nil
+	triggered = first.Value.(*Event)
+	scheduler.events.Remove(first)
+	if triggered.repeat != 0 {
+		triggered.delay = triggered.repeat
+		scheduler.Queue(triggered)
 	}
-	return result
+	return
 }
