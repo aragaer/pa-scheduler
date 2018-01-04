@@ -7,29 +7,29 @@ type Event struct {
 	what   []byte
 }
 
-type scheduler struct {
+type Scheduler struct {
 	event *Event
 }
 
-func NewScheduler() *scheduler {
-	return &scheduler{}
-}
-
-func (scheduler *scheduler) Queue(event *Event) {
+func (scheduler *Scheduler) Queue(event *Event) {
 	scheduler.event = event
 }
 
-func (scheduler *scheduler) Tick(seconds int) {
+func (scheduler *Scheduler) Tick(seconds int) {
 	if scheduler.event != nil {
 		scheduler.event.delay -= int64(seconds)
 	}
 }
 
-func (scheduler *scheduler) GetTriggeredEvent() *Event {
+func (scheduler *Scheduler) GetTriggeredEvent() *Event {
 	if scheduler.event == nil || scheduler.event.delay > 0 {
 		return nil
 	}
 	result := scheduler.event
-	scheduler.event = nil
+	if result.repeat != 0 {
+		result.delay = result.repeat
+	} else {
+		scheduler.event = nil
+	}
 	return result
 }
