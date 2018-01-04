@@ -1,3 +1,6 @@
+dist: trusty
+sudo: required
+
 language: go
 
 go:
@@ -5,6 +8,17 @@ go:
   - 1.6
   - 1.7.x
   - master
+
+addons:
+  sonarcloud:
+    organization: "your_organization_key"
+    token:
+      secure: "your_token_encrypted_with_travis_encrypt_tool"
+jdk:
+  - oraclejdk8
+cache:
+  directories:
+    - '$HOME/.sonar/cache'
 
 before_install:
   - go get -t -v ./...
@@ -14,3 +28,4 @@ script:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+  - sonar-scanner
