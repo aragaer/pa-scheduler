@@ -40,7 +40,7 @@ var testCases = map[string]tc{
 		Expected{"tick", "tock", "tick", "tock"}},
 	"two different freq": {
 		Events{{0, 2, "tick"}, {0, 3, "tock"}},
-		Expected{"tick tock", "", "tick", "tock"}},
+		Expected{"tick tock", "", "tick", "tock", "tick", "", "tick tock"}},
 	"insert before": {
 		Events{{1, 0, "tock"}, {0, 0, "tick"}},
 		Expected{"tick", "tock", ""}},
@@ -54,20 +54,29 @@ func TestScheduler(t *testing.T) {
 		}
 
 		for tick, eventsForTick := range tc.expected {
-			for _, expected := range strings.Fields(eventsForTick) {
+			actual := make(map[string]bool)
+			for {
 				event := scheduler.GetTriggeredEvent()
 				if event == nil {
-					t.Errorf("Test case \"%s\" failed:", name)
-					t.Fatalf("\"%s\" event is not triggered on tick %d", expected, tick)
-				} else if event.Name != expected {
-					t.Errorf("Test case \"%s\" failed:", name)
-					t.Fatalf("Expected \"%s\", got \"%s\"", expected, event.Name)
+					break
+				}
+				actual[event.Name] = true
+			}
+
+			expected := make(map[string]bool)
+			for _, e := range strings.Fields(eventsForTick) {
+				expected[e] = true
+				if !actual[e] {
+					t.Errorf("Test case \"%s\" failed on tick %d", name, tick)
+					t.Errorf("event \"%s\" is expected but didn't happen", e)
 				}
 			}
-			event := scheduler.GetTriggeredEvent()
-			if event != nil {
-				t.Errorf("Test case \"%s\" failed:", name)
-				t.Fatalf("\"%s\" event has ticked on tick %d", event.Name, tick)
+
+			for e := range actual {
+				if !expected[e] {
+					t.Errorf("Test case \"%s\" failed on tick %d", name, tick)
+					t.Errorf("event \"%s\" happened but is not expected", e)
+				}
 			}
 
 			scheduler.Tick(1)
