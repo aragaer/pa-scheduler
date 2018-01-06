@@ -6,10 +6,10 @@ import (
 
 func MakeEvent(delay int64, repeat int64, name string) *Event {
 	return &Event{
-		delay:  delay,
-		repeat: repeat,
-		name:   name,
-		what:   []byte(`{"event": "tick", "to": "brain1"}`),
+		Delay:  delay,
+		Repeat: repeat,
+		Name:   name,
+		What:   []byte(`{"event": "tick", "to": "brain1"}`),
 	}
 }
 
@@ -22,12 +22,12 @@ func TestScheduler_ImmediateOnce(t *testing.T) {
 	event := scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name)
-	} else if event.name != name {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.name)
+	} else if event.Name != name {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 }
 
@@ -39,7 +39,7 @@ func TestScheduler_DelayedOnce(t *testing.T) {
 
 	event := scheduler.GetTriggeredEvent()
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 
 	scheduler.Tick(1)
@@ -47,12 +47,12 @@ func TestScheduler_DelayedOnce(t *testing.T) {
 	event = scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name)
-	} else if event.name != name {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.name)
+	} else if event.Name != name {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 }
 
@@ -65,12 +65,12 @@ func TestScheduler_Repeating(t *testing.T) {
 	event := scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name)
-	} else if event.name != name {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.name)
+	} else if event.Name != name {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 
 	scheduler.Tick(1)
@@ -78,12 +78,12 @@ func TestScheduler_Repeating(t *testing.T) {
 	event = scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not repeated", name)
-	} else if event.name != name {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.name)
+	} else if event.Name != name {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 }
 
@@ -98,19 +98,19 @@ func TestScheduler_TwoImmediateOnce(t *testing.T) {
 	event := scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name1)
-	} else if event.name != name1 {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.name)
+	} else if event.Name != name1 {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.Name)
 	}
 
 	event = scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name2)
-	} else if event.name != name2 {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name2, event.name)
+	} else if event.Name != name2 {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name2, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 }
 
@@ -125,12 +125,12 @@ func TestScheduler_TwoAlternateRepeating(t *testing.T) {
 	event := scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name1)
-	} else if event.name != name1 {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.name)
+	} else if event.Name != name1 {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 
 	scheduler.Tick(1)
@@ -138,12 +138,12 @@ func TestScheduler_TwoAlternateRepeating(t *testing.T) {
 	event = scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name2)
-	} else if event.name != name2 {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name2, event.name)
+	} else if event.Name != name2 {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name2, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 
 	scheduler.Tick(1)
@@ -151,12 +151,12 @@ func TestScheduler_TwoAlternateRepeating(t *testing.T) {
 	event = scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name1)
-	} else if event.name != name1 {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.name)
+	} else if event.Name != name1 {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 }
 
@@ -171,12 +171,12 @@ func TestScheduler_ScheduleBefore(t *testing.T) {
 	event := scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name1)
-	} else if event.name != name1 {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.name)
+	} else if event.Name != name1 {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name1, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 
 	scheduler.Tick(1)
@@ -184,11 +184,11 @@ func TestScheduler_ScheduleBefore(t *testing.T) {
 	event = scheduler.GetTriggeredEvent()
 	if event == nil {
 		t.Fatalf("\"%s\" event is not triggered", name2)
-	} else if event.name != name2 {
-		t.Fatalf("Expected \"%s\", got \"%s\"", name2, event.name)
+	} else if event.Name != name2 {
+		t.Fatalf("Expected \"%s\", got \"%s\"", name2, event.Name)
 	}
 
 	if scheduler.GetTriggeredEvent() != nil {
-		t.Fatalf("\"%s\" event has ticked", event.name)
+		t.Fatalf("\"%s\" event has ticked", event.Name)
 	}
 }
