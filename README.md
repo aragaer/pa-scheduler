@@ -14,8 +14,8 @@ Each command is a single-line JSON (no newlines must be within messages) ending 
 
 - `add`: add a new event
   - `name`: unique identifier for a new event
-  - `delay`: time in seconds until first occurrence of the event
-  - `repeat`: time in seconds for periodic repeats or 0 for one-time event
+  - `delay` _(optional)_: time in seconds until first occurrence of the event, default 0
+  - `repeat` _(optional)_: time in seconds for periodic repeats or 0 for one-time event, default 0
   - `what`: string to be sent when event happens
 - `modify`: change an existing event
   - `name`: identifier of an event to be modified
