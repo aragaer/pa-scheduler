@@ -72,6 +72,27 @@ func Parse(message []byte) (result *Event, err error) {
 	return
 }
 
+func (scheduler *Scheduler) Add(event *Event) {
+	for e := scheduler.events.Front(); e != nil; e = e.Next() {
+		if e.Value.(*Event).Name == event.Name {
+			return
+		}
+	}
+	scheduler.Queue(event)
+}
+
+func (scheduler *Scheduler) Modify(event *Event) {
+	old := scheduler.Remove(event)
+	if old != nil {
+		old.Delay = event.Delay
+		old.Repeat = event.Repeat
+		if event.What != nil {
+			old.What = event.What
+		}
+		scheduler.Queue(old)
+	}
+}
+
 func (scheduler *Scheduler) Remove(event *Event) (removed *Event) {
 	for e := scheduler.events.Front(); e != nil; e = e.Next() {
 		queued := e.Value.(*Event)
@@ -85,16 +106,4 @@ func (scheduler *Scheduler) Remove(event *Event) (removed *Event) {
 		}
 	}
 	return
-}
-
-func (scheduler *Scheduler) Modify(event *Event) {
-	old := scheduler.Remove(event)
-	if old != nil {
-		old.Delay = event.Delay
-		old.Repeat = event.Repeat
-		if event.What != nil {
-			old.What = event.What
-		}
-		scheduler.Queue(old)
-	}
 }

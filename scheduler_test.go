@@ -143,3 +143,29 @@ func TestModify(t *testing.T) {
 		}
 	}
 }
+
+var testCases_add = []tc{
+	{"add one",
+		Events{},
+		Expected{"", "tick", "", "tick", ""}},
+	{"add one more",
+		Events{{2, 1, "tock"}},
+		Expected{"", "tick", "tock", "tick tock"}},
+	{"same name",
+		Events{{2, 0, "tick"}},
+		Expected{"", "", "tick", "", ""}},
+}
+
+func TestAdd(t *testing.T) {
+	for _, tc := range testCases_add {
+		scheduler := tc.SetUpQueue()
+
+		for tick := range tc.expected {
+			tc.CheckEvents(scheduler, tick, t)
+			scheduler.Tick(1)
+			if tick == 0 {
+				scheduler.Add(&Event{Name: "tick", Delay: 0, Repeat: 2})
+			}
+		}
+	}
+}
