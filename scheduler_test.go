@@ -99,6 +99,9 @@ var testCases_remove = []tc{
 	{"remove first only",
 		Events{{2, 0, "tick"}, {3, 0, "tock"}},
 		Expected{"", "", "", "tock"}},
+	{"remove unexistent",
+		Events{{1, 0, "tock"}},
+		Expected{"", "tock", "", ""}},
 }
 
 func TestRemove(t *testing.T) {
@@ -110,6 +113,32 @@ func TestRemove(t *testing.T) {
 			scheduler.Tick(1)
 			if tick == 0 {
 				scheduler.Remove(&Event{Name: "tick"})
+			}
+		}
+	}
+}
+
+var testCases_modify = []tc{
+	{"reschedule single",
+		Events{{0, 10, "tick"}},
+		Expected{"tick", "tick", "", "tick", ""}},
+	{"reschedule first",
+		Events{{0, 10, "tick"}, {2, 0, "tock"}},
+		Expected{"tick", "tick", "tock", "tick", ""}},
+	{"reschedule unexistent",
+		Events{{1, 0, "tock"}},
+		Expected{"", "tock", "", "", ""}},
+}
+
+func TestModify(t *testing.T) {
+	for _, tc := range testCases_modify {
+		scheduler := tc.SetUpQueue()
+
+		for tick := range tc.expected {
+			tc.CheckEvents(scheduler, tick, t)
+			scheduler.Tick(1)
+			if tick == 0 {
+				scheduler.Modify(&Event{Name: "tick", Delay: 0, Repeat: 2})
 			}
 		}
 	}
