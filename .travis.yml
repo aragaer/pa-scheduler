@@ -11,9 +11,9 @@ go:
 
 addons:
   sonarcloud:
-    organization: "your_organization_key"
+    organization: "aragaer-github"
     token:
-      secure: "your_token_encrypted_with_travis_encrypt_tool"
+      secure: "ITkn7wQ2C2IJhB1YYBqmb0I1yoLWd6jpz//iGkGpIKmm3hC8MridgC2MSyG/0/mSOr0hv9vkK6mh72I6Ps8SZT5cfW+KYvwyjFQsOMS7CWXaT/FT5xQNoXHo/vII2iq8TziCpm9Ns/Fskpl41QV3fxLa/D7ZUQ7f3dlK87yzBWntk9nshdYKTFoJ+Yjp39JB/b4QzDbsGeQe5k11BpHdo7ipguZiIo4H8JmxMbcGTqMKoVHzG/q2icz+vhguQ1IJT6Epk8PpJ3dsKQTHdABJrEIgVwfQoRk/kKjkVSnXY469h7zVySnYPQWHtFJ3+32ql1esKgGrDsJuOOWqpSDeROPM7F6hJW2zBF6jdSfdtbd/s9sPh0N3qCqM/xBwy5jBusK9S3OsrypzaMy/gLxHmm7NfSoVtwB8Bz3bmgXvgqWsVhphlw+F0TrVTtA4r0mJBAtdIajUNNBd/jWrZ5mq2+hv503vNvg8GikrUgFO+4i41m6BqtPcmXAaAdwVlr9Um8XzpbMnuZh3ozCfZKR8ySxMRnC2yMKn5MK3TSaNUVpLPogZM/F/IrzbjZE3qkKtBQFoCnd5NUQ3MC1b18qvl2NEs5hJJQGflvHE56K2s+gkob5I7iFYKRSeePCauHttCaeuUC+7rjvuneNR4NtS3MomlqlQH8VmBgpoqRiDujM="
 jdk:
   - oraclejdk8
 cache:
