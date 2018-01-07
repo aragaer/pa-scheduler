@@ -71,3 +71,16 @@ func Parse(message []byte) (result *Event, err error) {
 	}
 	return
 }
+
+func (scheduler *Scheduler) Remove(event *Event) {
+	for e := scheduler.events.Front(); e != nil; e = e.Next() {
+		queued := e.Value.(*Event)
+		if queued.Name == event.Name {
+			if e.Next() != nil {
+				e.Next().Value.(*Event).Delay += queued.Delay
+			}
+			scheduler.events.Remove(e)
+			break
+		}
+	}
+}
