@@ -3,6 +3,7 @@ package main
 import (
 	"container/list"
 	"encoding/json"
+	"errors"
 )
 
 type Event struct {
@@ -64,5 +65,14 @@ func (scheduler *Scheduler) TriggeredEvents() <-chan *Event {
 
 func Parse(message []byte) (result *Event, err error) {
 	err = json.Unmarshal(message, &result)
+	if err == nil {
+		if result.Name == "" {
+			result = nil
+			err = errors.New("\"name\" field is missing")
+		} else if result.What == nil {
+			result = nil
+			err = errors.New("\"what\" field is missing")
+		}
+	}
 	return
 }
