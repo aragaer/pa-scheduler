@@ -23,6 +23,9 @@ type tc struct {
 }
 
 var testCases = map[string]tc{
+	"nothing": {
+		Events{},
+		Expected{"", "", ""}},
 	"one immediate": {
 		Events{{0, 0, "tick"}},
 		Expected{"tick", "", ""}},
@@ -55,11 +58,7 @@ func TestScheduler(t *testing.T) {
 
 		for tick, eventsForTick := range tc.expected {
 			actual := make(map[string]bool)
-			for {
-				event := scheduler.GetTriggeredEvent()
-				if event == nil {
-					break
-				}
+			for event := range scheduler.TriggeredEvents() {
 				actual[event.Name] = true
 			}
 

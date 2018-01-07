@@ -34,28 +34,35 @@ func (scheduler *Scheduler) Queue(event *Event) {
 }
 
 func (scheduler *Scheduler) Tick(seconds int) {
-	first := scheduler.events.Front()
-	if first != nil {
-		first.Value.(*Event).Delay -= int64(seconds)
+	if scheduler.events.Len() > 0 {
+		scheduler.events.Front().Value.(*Event).Delay -= int64(seconds)
 	}
 }
 
-func (scheduler *Scheduler) GetTriggeredEvent() (triggered *Event) {
-	first := scheduler.events.Front()
-	if first == nil || first.Value.(*Event).Delay > 0 {
-		return
+func (scheduler *Scheduler) putTriggeredEventsToChannel(ch chan<- *Event) {
+	for {
+		first := scheduler.events.Front()
+		if first == nil || first.Value.(*Event).Delay > 0 {
+			break
+		}
+		triggered := first.Value.(*Event)
+		ch <- triggered
+		scheduler.events.Remove(first)
+		if triggered.Repeat != 0 {
+			triggered.Delay = triggered.Repeat
+			scheduler.Queue(triggered)
+		}
 	}
-	triggered = first.Value.(*Event)
-	scheduler.events.Remove(first)
-	if triggered.Repeat != 0 {
-		triggered.Delay = triggered.Repeat
-		scheduler.Queue(triggered)
-	}
-	return
+	close(ch)
+}
+
+func (scheduler *Scheduler) TriggeredEvents() <-chan *Event {
+	ch := make(chan *Event)
+	go scheduler.putTriggeredEventsToChannel(ch)
+	return ch
 }
 
 func Parse(message []byte) (result *Event, err error) {
-	event := Event{}
-	err = json.Unmarshal(message, &event)
-	return &event, err
+	err = json.Unmarshal(message, &result)
+	return
 }
