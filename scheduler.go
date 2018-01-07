@@ -33,9 +33,9 @@ func (scheduler *Scheduler) Queue(event *Event) {
 	scheduler.events.PushBack(event)
 }
 
-func (scheduler *Scheduler) Tick(seconds int) {
+func (scheduler *Scheduler) Tick(seconds int64) {
 	if scheduler.events.Len() > 0 {
-		scheduler.events.Front().Value.(*Event).Delay -= int64(seconds)
+		scheduler.events.Front().Value.(*Event).Delay -= seconds
 	}
 }
 
