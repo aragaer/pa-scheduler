@@ -32,18 +32,3 @@ func TestParse_NameRequired(t *testing.T) {
 		t.Fatalf("Event should not be created")
 	}
 }
-
-func TestParse_WhatRequired(t *testing.T) {
-	b := []byte(`{"delay": 0, "repeat": 0, "name": "tick"}`)
-	expectedError := "\"what\" field is missing"
-
-	event, err := Parse(b)
-
-	if err == nil {
-		t.Fatalf("Error expected")
-	} else if err.Error() != expectedError {
-		t.Fatalf("Expected error %s, got %s", expectedError, err.Error())
-	} else if event != nil {
-		t.Fatalf("Event should not be created")
-	}
-}
