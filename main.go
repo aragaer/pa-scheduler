@@ -36,7 +36,7 @@ func main() {
 			var command map[string]interface{}
 			bytes := []byte(line)
 			if err := json.Unmarshal(bytes, &command); err == nil {
-				action := command["action"].(string)
+				action := command["command"].(string)
 				event, err := Parse(bytes)
 				if err == nil {
 					switch action {
