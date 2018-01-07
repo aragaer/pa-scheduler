@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -32,11 +33,23 @@ func main() {
 			}
 			last = now
 		case line := <-stdin:
-			event, err := Parse([]byte(line))
-			if err == nil {
-				scheduler.Queue(event)
-			} else {
-				fmt.Printf("Error parsing \"%s\": %v\n", line, err)
+			var command map[string]interface{}
+			bytes := []byte(line)
+			if err := json.Unmarshal(bytes, &command); err == nil {
+				action := command["action"].(string)
+				event, err := Parse(bytes)
+				if err == nil {
+					switch action {
+					case "add":
+						scheduler.Add(event)
+					case "modify":
+						scheduler.Modify(event)
+					case "cancel":
+						scheduler.Remove(event)
+					}
+				} else {
+					fmt.Printf("Error parsing \"%s\": %v\n", line, err)
+				}
 			}
 		}
 	}
