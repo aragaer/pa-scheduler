@@ -48,9 +48,10 @@ func (scheduler *Scheduler) putTriggeredEventsToChannel(ch chan<- *Event) {
 		}
 		triggered := first.Value.(*Event)
 		ch <- triggered
-		scheduler.events.Remove(first)
+		scheduler.Remove(triggered)
 		if triggered.Repeat != 0 {
-			triggered.Delay = triggered.Repeat
+			triggered.Delay %= triggered.Repeat
+			triggered.Delay += triggered.Repeat
 			scheduler.Queue(triggered)
 		}
 	}

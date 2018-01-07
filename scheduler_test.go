@@ -61,6 +61,10 @@ func (tc *tc) SetUpQueue() *Scheduler {
 func (tc *tc) CheckEvents(scheduler *Scheduler, tick int, t *testing.T) {
 	actual := make(map[string]bool)
 	for event := range scheduler.TriggeredEvents() {
+		if actual[event.Name] == true {
+			t.Errorf("Test case \"%s\" failed on tick %d", tc.name, tick)
+			t.Errorf("event \"%s\" happened multiple times", event.Name)
+		}
 		actual[event.Name] = true
 	}
 
@@ -165,6 +169,38 @@ func TestAdd(t *testing.T) {
 			scheduler.Tick(1)
 			if tick == 0 {
 				scheduler.Add(&Event{Name: "tick", Delay: 0, Repeat: 2})
+			}
+		}
+	}
+}
+
+var testCases_overrun_plus_4 = []tc{
+	{"every tick",
+		Events{{0, 1, "tick"}},
+		Expected{"tick", "tick", "tick", "tick"}},
+	{"every third",
+		Events{{0, 3, "tick"}},
+		Expected{"tick", "tick", "tick", "", "", "tick"}},
+	{"collapse",
+		Events{{0, 2, "tick"}, {3, 2, "tock"}},
+		Expected{"tick", "tick tock", "tick", "tock"}},
+	{"trigger once",
+		Events{{1, 3, "tick"}},
+		Expected{"", "tick", "", "tick", ""}},
+}
+
+func TestOverrun(t *testing.T) {
+	for _, tc := range testCases_overrun_plus_4 {
+		scheduler := tc.SetUpQueue()
+
+		n := 0
+		for tick := range tc.expected {
+			tc.CheckEvents(scheduler, tick, t)
+			scheduler.Tick(1)
+			n++
+			if tick == 0 {
+				scheduler.Tick(4)
+				n += 4
 			}
 		}
 	}
