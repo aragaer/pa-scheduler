@@ -13,7 +13,7 @@ func stdinLines(ch chan<- string) {
 	for scan.Scan() {
 		ch <- scan.Text()
 	}
-	os.Exit(0)
+	ch <- "EOF"
 }
 
 func main() {
@@ -33,6 +33,9 @@ func main() {
 			}
 			last = now
 		case line := <-stdin:
+			if line == "EOF" {
+				return
+			}
 			var command map[string]interface{}
 			bytes := []byte(line)
 			if err := json.Unmarshal(bytes, &command); err == nil {
