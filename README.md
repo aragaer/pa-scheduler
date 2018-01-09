@@ -4,10 +4,6 @@ An application used for scheduling "events". Each event is a string that is prin
 
 Controlled by sending JSON commands to standard input
 
-## Command-line arguments
-
-- --saved <path> - path to a saved state dump
-
 ## Command format
 
 Each command is a single-line JSON (no newlines must be within messages) ending with a newline. Each command must have the mandatory `command` field which determines which command to perform:
