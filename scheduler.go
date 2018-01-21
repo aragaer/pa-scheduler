@@ -71,14 +71,13 @@ Loop:
 			}
 			evtQ.Tick(ticks)
 		}
-		if len(evtCh) < cap(evtCh) {
-			for event := range evtQ.TriggeredEvents() {
-				what, _ := event.What.MarshalJSON()
-				evtCh <- string(what)
-				if len(evtCh) == cap(evtCh) {
-					break
-				}
+		for len(evtCh) < cap(evtCh) {
+			event := evtQ.GetTriggeredEvent()
+			if event == nil {
+				break
 			}
+			what, _ := event.What.MarshalJSON()
+			evtCh <- string(what)
 		}
 	}
 	close(evtCh)

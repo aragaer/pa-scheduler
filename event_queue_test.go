@@ -52,16 +52,20 @@ var testCases = []tc{
 }
 
 func (tc *tc) SetUpQueue() *eventQueue {
-	scheduler := NewEventQueue()
+	queue := NewEventQueue()
 	for _, e := range tc.events {
-		scheduler.Queue(e.mk())
+		queue.Queue(e.mk())
 	}
-	return scheduler
+	return queue
 }
 
-func (tc *tc) CheckEvents(scheduler *eventQueue, tick int, t *testing.T) {
+func (tc *tc) CheckEvents(queue *eventQueue, tick int, t *testing.T) {
 	actual := make(map[string]bool)
-	for event := range scheduler.TriggeredEvents() {
+	for {
+		event := queue.GetTriggeredEvent()
+		if event == nil {
+			break
+		}
 		if actual[event.Name] == true {
 			t.Errorf("Test case \"%s\" failed on tick %d", tc.name, tick)
 			t.Errorf("event \"%s\" happened multiple times", event.Name)
@@ -86,13 +90,13 @@ func (tc *tc) CheckEvents(scheduler *eventQueue, tick int, t *testing.T) {
 	}
 }
 
-func TesteventQueue(t *testing.T) {
+func TestEventQueue(t *testing.T) {
 	for _, tc := range testCases {
-		scheduler := tc.SetUpQueue()
+		queue := tc.SetUpQueue()
 
 		for tick := range tc.expected {
-			tc.CheckEvents(scheduler, tick, t)
-			scheduler.Tick(1)
+			tc.CheckEvents(queue, tick, t)
+			queue.Tick(1)
 		}
 	}
 }
