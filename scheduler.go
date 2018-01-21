@@ -1,110 +1,85 @@
+// -*- tab-width:4  -*-
 package scheduler
 
-import (
-	"container/list"
-	"encoding/json"
-	"errors"
-)
+import "encoding/json"
 
-type Event struct {
-	Delay  int64           `json:"delay"`
-	Repeat int64           `json:"repeat"`
-	Name   string          `json:"name"`
-	What   json.RawMessage `json:"what"`
+type scheduler struct {
+	Events   <-chan string
+	Commands chan<- []byte
+	Ticks    chan<- int64
 }
 
-type Scheduler struct {
-	events *list.List
+type cmd struct {
+	Command string           `json:"command"`
+	Delay   *int64           `json:"delay"`
+	Repeat  *int64           `json:"repeat"`
+	What    *json.RawMessage `json:"what"`
+	Name    string           `json:"name"`
 }
 
-func NewScheduler() (result *Scheduler) {
-	return &Scheduler{list.New()}
+func New() *scheduler {
+	cmdCh := make(chan []byte, 10)
+	evtCh := make(chan string, 10)
+	tickCh := make(chan int64, 10)
+	evtQ := NewEventQueue()
+	go start(cmdCh, tickCh, evtCh, evtQ)
+	return &scheduler{evtCh, cmdCh, tickCh}
 }
 
-func (scheduler *Scheduler) Queue(event *Event) {
-	for e := scheduler.events.Front(); e != nil; e = e.Next() {
-		queued := e.Value.(*Event)
-		if queued.Delay > event.Delay {
-			queued.Delay -= event.Delay
-			scheduler.events.InsertBefore(event, e)
-			return
-		}
-		event.Delay -= queued.Delay
+func (scheduler *scheduler) Close() {
+	close(scheduler.Commands)
+}
+
+func (event *Event) fillFromCmd(cmd *cmd) {
+	if cmd.What != nil {
+		event.What = *cmd.What
 	}
-	scheduler.events.PushBack(event)
-}
-
-func (scheduler *Scheduler) Tick(seconds int64) {
-	if scheduler.events.Len() > 0 {
-		scheduler.events.Front().Value.(*Event).Delay -= seconds
+	if cmd.Delay != nil {
+		event.Delay = *cmd.Delay
+	}
+	if cmd.Repeat != nil {
+		event.Repeat = *cmd.Repeat
 	}
 }
 
-func (scheduler *Scheduler) putTriggeredEventsToChannel(ch chan<- *Event) {
+func start(cmdCh <-chan []byte, tickCh <-chan int64, evtCh chan<- string, evtQ *eventQueue) {
+Loop:
 	for {
-		first := scheduler.events.Front()
-		if first == nil || first.Value.(*Event).Delay > 0 {
-			break
-		}
-		triggered := first.Value.(*Event)
-		ch <- triggered
-		scheduler.Remove(triggered)
-		if triggered.Repeat != 0 {
-			triggered.Delay %= triggered.Repeat
-			triggered.Delay += triggered.Repeat
-			scheduler.Queue(triggered)
-		}
-	}
-	close(ch)
-}
-
-func (scheduler *Scheduler) TriggeredEvents() <-chan *Event {
-	ch := make(chan *Event)
-	go scheduler.putTriggeredEventsToChannel(ch)
-	return ch
-}
-
-func Parse(message []byte) (result *Event, err error) {
-	err = json.Unmarshal(message, &result)
-	if err == nil && result.Name == "" {
-		result = nil
-		err = errors.New("\"name\" field is missing")
-	}
-	return
-}
-
-func (scheduler *Scheduler) Add(event *Event) {
-	for e := scheduler.events.Front(); e != nil; e = e.Next() {
-		if e.Value.(*Event).Name == event.Name {
-			return
-		}
-	}
-	scheduler.Queue(event)
-}
-
-func (scheduler *Scheduler) Modify(event *Event) {
-	old := scheduler.Remove(event)
-	if old != nil {
-		old.Delay = event.Delay
-		old.Repeat = event.Repeat
-		if event.What != nil {
-			old.What = event.What
-		}
-		scheduler.Queue(old)
-	}
-}
-
-func (scheduler *Scheduler) Remove(event *Event) (removed *Event) {
-	for e := scheduler.events.Front(); e != nil; e = e.Next() {
-		queued := e.Value.(*Event)
-		if queued.Name == event.Name {
-			if e.Next() != nil {
-				e.Next().Value.(*Event).Delay += queued.Delay
+		select {
+		case cmdBytes, ok := <-cmdCh:
+			if ok == false {
+				break Loop
 			}
-			scheduler.events.Remove(e)
-			removed = queued
-			break
+			var cmd cmd
+			if err := json.Unmarshal(cmdBytes, &cmd); err == nil {
+				switch cmd.Command {
+				case "add":
+					event := &Event{Name: cmd.Name}
+					event.fillFromCmd(&cmd)
+					evtQ.Queue(event)
+				case "modify":
+					event := evtQ.Remove(cmd.Name)
+					event.fillFromCmd(&cmd)
+					evtQ.Queue(event)
+				case "cancel":
+					evtQ.Remove(cmd.Name)
+				}
+			}
+		case ticks, ok := <-tickCh:
+			if ok == false {
+				break Loop
+			}
+			evtQ.Tick(ticks)
+		}
+		if len(evtCh) < cap(evtCh) {
+			for event := range evtQ.TriggeredEvents() {
+				what, _ := event.What.MarshalJSON()
+				evtCh <- string(what)
+				if len(evtCh) == cap(evtCh) {
+					break
+				}
+			}
 		}
 	}
-	return
+	close(evtCh)
 }

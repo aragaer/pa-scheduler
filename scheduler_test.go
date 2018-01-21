@@ -1,207 +1,174 @@
 package scheduler
 
-import (
-	"strings"
-	"testing"
-)
+import "time"
+import "testing"
 
-type event struct {
-	delay, repeat int64
-	name          string
-}
-
-func (e event) mk() *Event {
-	return &Event{e.delay, e.repeat, e.name, []byte(`{"event": "tick"}`)}
-}
-
-type Events []event
-type Expected []string
-
-type tc struct {
-	name     string
-	events   Events
-	expected Expected
-}
-
-var testCases = []tc{
-	{"nothing",
-		Events{},
-		Expected{"", "", ""}},
-	{"one immediate",
-		Events{{0, 0, "tick"}},
-		Expected{"tick", "", ""}},
-	{"one delayed",
-		Events{{1, 0, "tick"}},
-		Expected{"", "tick", ""}},
-	{"one repeating",
-		Events{{0, 1, "tick"}},
-		Expected{"tick", "tick", "tick"}},
-	{"two immediate",
-		Events{{0, 0, "tick"}, {0, 0, "tock"}},
-		Expected{"tick tock", "", ""}},
-	{"two alternating",
-		Events{{0, 2, "tick"}, {1, 2, "tock"}},
-		Expected{"tick", "tock", "tick", "tock"}},
-	{"two different freq",
-		Events{{0, 2, "tick"}, {0, 3, "tock"}},
-		Expected{"tick tock", "", "tick", "tock", "tick", "", "tick tock"}},
-	{"insert before",
-		Events{{1, 0, "tock"}, {0, 0, "tick"}},
-		Expected{"tick", "tock", ""}},
-}
-
-func (tc *tc) SetUpQueue() *Scheduler {
-	scheduler := NewScheduler()
-	for _, e := range tc.events {
-		scheduler.Queue(e.mk())
-	}
-	return scheduler
-}
-
-func (tc *tc) CheckEvents(scheduler *Scheduler, tick int, t *testing.T) {
-	actual := make(map[string]bool)
-	for event := range scheduler.TriggeredEvents() {
-		if actual[event.Name] == true {
-			t.Errorf("Test case \"%s\" failed on tick %d", tc.name, tick)
-			t.Errorf("event \"%s\" happened multiple times", event.Name)
-		}
-		actual[event.Name] = true
-	}
-
-	expected := make(map[string]bool)
-	for _, e := range strings.Fields(tc.expected[tick]) {
-		expected[e] = true
-		if !actual[e] {
-			t.Errorf("Test case \"%s\" failed on tick %d", tc.name, tick)
-			t.Errorf("event \"%s\" is expected but didn't happen", e)
-		}
-	}
-
-	for e := range actual {
-		if !expected[e] {
-			t.Errorf("Test case \"%s\" failed on tick %d", tc.name, tick)
-			t.Errorf("event \"%s\" happened but is not expected", e)
-		}
-	}
-}
-
-func TestScheduler(t *testing.T) {
-	for _, tc := range testCases {
-		scheduler := tc.SetUpQueue()
-
-		for tick := range tc.expected {
-			tc.CheckEvents(scheduler, tick, t)
-			scheduler.Tick(1)
-		}
-	}
-}
-
-var testCases_remove = []tc{
-	{"remove single",
-		Events{{0, 1, "tick"}},
-		Expected{"tick", "", ""}},
-	{"remove first only",
-		Events{{2, 0, "tick"}, {3, 0, "tock"}},
-		Expected{"", "", "", "tock"}},
-	{"remove unexistent",
-		Events{{1, 0, "tock"}},
-		Expected{"", "tock", "", ""}},
-}
-
-func TestRemove(t *testing.T) {
-	for _, tc := range testCases_remove {
-		scheduler := tc.SetUpQueue()
-
-		for tick := range tc.expected {
-			tc.CheckEvents(scheduler, tick, t)
-			scheduler.Tick(1)
-			if tick == 0 {
-				scheduler.Remove(&Event{Name: "tick"})
+func Verify(expected []string, scheduler *scheduler, t *testing.T) {
+	for {
+		select {
+		case message := <-scheduler.Events:
+			if len(expected) == 0 {
+				t.Fatalf("Expected nothing, got event '%s'", message)
 			}
+			if message != expected[0] {
+				t.Fatalf("Expected '%s', got event '%s'", expected[0], message)
+			}
+			expected = expected[1:]
+		case <-time.After(time.Millisecond):
+			if len(expected) > 0 {
+				t.Fatalf("Expected '%s', got nothing", expected[0])
+			}
+			return
 		}
 	}
 }
 
-var testCases_modify = []tc{
-	{"reschedule single",
-		Events{{0, 10, "tick"}},
-		Expected{"tick", "tick", "", "tick", ""}},
-	{"reschedule first",
-		Events{{0, 10, "tick"}, {2, 0, "tock"}},
-		Expected{"tick", "tick", "tock", "tick", ""}},
-	{"reschedule unexistent",
-		Events{{1, 0, "tock"}},
-		Expected{"", "tock", "", "", ""}},
+func TestSchedulerAdd(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
+	Verify([]string{}, scheduler, t)
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello"}`)
+	Verify([]string{`"hello"`}, scheduler, t)
+
+	scheduler.Ticks <- 1
+	Verify([]string{}, scheduler, t)
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello2", "delay": 3}`)
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 2
+	Verify([]string{`"hello2"`}, scheduler, t)
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello3", "repeat": 1}`)
+	Verify([]string{`"hello3"`}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{`"hello3"`}, scheduler, t)
+	scheduler.Ticks <- 2
+	Verify([]string{`"hello3"`}, scheduler, t)
 }
 
-func TestModify(t *testing.T) {
-	for _, tc := range testCases_modify {
-		scheduler := tc.SetUpQueue()
+func TestSchedulerModify1(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
 
-		for tick := range tc.expected {
-			tc.CheckEvents(scheduler, tick, t)
-			scheduler.Tick(1)
-			if tick == 0 {
-				scheduler.Modify(&Event{Name: "tick", Delay: 0, Repeat: 2})
-			}
-		}
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello", "delay": 100}`)
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{}, scheduler, t)
+
+	scheduler.Commands <- []byte(`{"command": "modify", "name": "hello", "delay": 1}`)
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{`"hello"`}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{}, scheduler, t)
+}
+
+func TestSchedulerModify2(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello", "repeat": 1}`)
+	Verify([]string{`"hello"`}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{`"hello"`}, scheduler, t)
+
+	scheduler.Commands <- []byte(`{"command": "modify", "name": "hello", "what": "hi"}`)
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{`"hi"`}, scheduler, t)
+	scheduler.Ticks <- 1
+	Verify([]string{`"hi"`}, scheduler, t)
+}
+
+func TestSchedulerModify3(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello", "repeat": 2}`)
+	Verify([]string{`"hello"`}, scheduler, t)
+	scheduler.Ticks <- 1
+
+	scheduler.Commands <- []byte(`{"command": "modify", "name": "hello", "repeat": 3}`)
+	// Wait until scheduler handles the command
+	for len(scheduler.Commands) > 0 {
+		time.Sleep(time.Millisecond)
+	}
+	scheduler.Ticks <- 1
+	Verify([]string{`"hello"`}, scheduler, t)
+	scheduler.Ticks <- 2
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 2
+	Verify([]string{`"hello"`}, scheduler, t)
+}
+
+func TestSchedulerCancel(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello", "repeat": 2}`)
+	Verify([]string{`"hello"`}, scheduler, t)
+	scheduler.Ticks <- 1
+
+	scheduler.Commands <- []byte(`{"command": "cancel", "name": "hello"}`)
+	// Wait until scheduler handles the command
+	for len(scheduler.Commands) > 0 {
+		time.Sleep(time.Millisecond)
+	}
+	scheduler.Ticks <- 1
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 2
+	Verify([]string{}, scheduler, t)
+	scheduler.Ticks <- 2
+	Verify([]string{}, scheduler, t)
+}
+
+func TestSchedulerTwoEvents(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello1", "what": "hello1"}`)
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello2", "what": "hello2", "delay": 1}`)
+	Verify([]string{`"hello1"`}, scheduler, t)
+
+	scheduler.Ticks <- 1
+	Verify([]string{`"hello2"`}, scheduler, t)
+}
+
+func TestSchedulerCancelTwo(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello1", "what": "hello1", "delay": 10}`)
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello2", "what": "hello2", "delay": 1}`)
+	scheduler.Commands <- []byte(`{"command": "cancel", "name": "hello1"}`)
+	// Wait until scheduler handles the command
+	for len(scheduler.Commands) > 0 {
+		time.Sleep(time.Millisecond)
+	}
+
+	scheduler.Ticks <- 20
+	Verify([]string{`"hello2"`}, scheduler, t)
+}
+
+func TestSchedulerLock(t *testing.T) {
+	scheduler := New()
+	defer scheduler.Close()
+
+	scheduler.Commands <- []byte(`{"command": "add", "name": "hello", "what": "hello", "repeat": 1}`)
+	for i := 0; i < 100; i++ {
+		scheduler.Ticks <- 1
 	}
 }
 
-var testCases_add = []tc{
-	{"add one",
-		Events{},
-		Expected{"", "tick", "", "tick", ""}},
-	{"add one more",
-		Events{{2, 1, "tock"}},
-		Expected{"", "tick", "tock", "tick tock"}},
-	{"same name",
-		Events{{2, 0, "tick"}},
-		Expected{"", "", "tick", "", ""}},
-}
+func TestSchedulerCleanup(t *testing.T) {
+	scheduler := New()
 
-func TestAdd(t *testing.T) {
-	for _, tc := range testCases_add {
-		scheduler := tc.SetUpQueue()
+	scheduler.Close()
 
-		for tick := range tc.expected {
-			tc.CheckEvents(scheduler, tick, t)
-			scheduler.Tick(1)
-			if tick == 0 {
-				scheduler.Add(&Event{Name: "tick", Delay: 0, Repeat: 2})
-			}
-		}
-	}
-}
-
-var testCases_overrun_plus_4 = []tc{
-	{"every tick",
-		Events{{0, 1, "tick"}},
-		Expected{"tick", "tick", "tick", "tick"}},
-	{"every third",
-		Events{{0, 3, "tick"}},
-		Expected{"tick", "tick", "tick", "", "", "tick"}},
-	{"collapse",
-		Events{{0, 2, "tick"}, {3, 2, "tock"}},
-		Expected{"tick", "tick tock", "tick", "tock"}},
-	{"trigger once",
-		Events{{1, 3, "tick"}},
-		Expected{"", "tick", "", "tick", ""}},
-}
-
-func TestOverrun(t *testing.T) {
-	for _, tc := range testCases_overrun_plus_4 {
-		scheduler := tc.SetUpQueue()
-
-		n := 0
-		for tick := range tc.expected {
-			tc.CheckEvents(scheduler, tick, t)
-			scheduler.Tick(1)
-			n++
-			if tick == 0 {
-				scheduler.Tick(4)
-				n += 4
-			}
-		}
+	if _, ok := <-scheduler.Events; ok {
+		t.Fatalf("Scheduler is not finalized")
 	}
 }

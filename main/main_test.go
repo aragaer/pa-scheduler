@@ -1,4 +1,4 @@
-package scheduler
+package main
 
 import (
 	"bufio"
@@ -14,6 +14,8 @@ type Actions []struct {
 	command               string
 }
 
+type Expected []string
+
 type main_tc struct {
 	name     string
 	actions  Actions
@@ -28,8 +30,8 @@ var MainTestCases = []main_tc{
 		Actions{{0, 1, `{"command": "add", "name": "test", "what": "hi"}`}},
 		Expected{`"hi"`}},
 	{"hi repeating",
-		Actions{{0, 3, `{"command": "add", "repeat": 1, "name": "test", "what": "hi"}`}},
-		Expected{`"hi"`, `"hi"`, `"hi"`}},
+		Actions{{0, 3, `{"command": "add", "repeat": 2, "name": "test", "what": "hi"}`}},
+		Expected{`"hi"`, `"hi"`}},
 }
 
 func (tc main_tc) Run(t *testing.T) {
