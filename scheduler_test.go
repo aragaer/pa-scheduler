@@ -172,3 +172,13 @@ func TestSchedulerCleanup(t *testing.T) {
 		t.Fatalf("Scheduler is not finalized")
 	}
 }
+
+func TestSchedulerCleanup2(t *testing.T) {
+	scheduler := New()
+
+	close(scheduler.Ticks)
+
+	if _, ok := <-scheduler.Events; ok {
+		t.Fatalf("Scheduler is not finalized")
+	}
+}
