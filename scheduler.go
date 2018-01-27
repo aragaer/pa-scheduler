@@ -42,6 +42,25 @@ func (event *Event) fillFromCmd(cmd *cmd) {
 	}
 }
 
+func (evtQ *eventQueue) handleCommand(cmdBytes []byte) {
+	var cmd cmd
+	if err := json.Unmarshal(cmdBytes, &cmd); err != nil {
+		return
+	}
+	switch cmd.Command {
+	case "add":
+		event := &Event{Name: cmd.Name}
+		event.fillFromCmd(&cmd)
+		evtQ.Queue(event)
+	case "modify":
+		event := evtQ.Remove(cmd.Name)
+		event.fillFromCmd(&cmd)
+		evtQ.Queue(event)
+	case "cancel":
+		evtQ.Remove(cmd.Name)
+	}
+}
+
 func start(cmdCh <-chan []byte, tickCh <-chan int64, evtCh chan<- string, evtQ *eventQueue) {
 Loop:
 	for {
@@ -50,21 +69,7 @@ Loop:
 			if ok == false {
 				break Loop
 			}
-			var cmd cmd
-			if err := json.Unmarshal(cmdBytes, &cmd); err == nil {
-				switch cmd.Command {
-				case "add":
-					event := &Event{Name: cmd.Name}
-					event.fillFromCmd(&cmd)
-					evtQ.Queue(event)
-				case "modify":
-					event := evtQ.Remove(cmd.Name)
-					event.fillFromCmd(&cmd)
-					evtQ.Queue(event)
-				case "cancel":
-					evtQ.Remove(cmd.Name)
-				}
-			}
+			evtQ.handleCommand(cmdBytes)
 		case ticks, ok := <-tickCh:
 			if ok == false {
 				break Loop
